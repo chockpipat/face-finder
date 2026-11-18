@@ -1,0 +1,45 @@
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AI_WORKER_URL=http://ai-worker:8000
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
+      - JOB_TTL_SECONDS=${JOB_TTL_SECONDS}
+    depends_on:
+      - redis
+      - ai-worker
+    restart: unless-stopped
+
+  ai-worker:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NEXTJS_URL=http://web:3000
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN}
+    depends_on:
+      - redis
+    volumes:
+      - /tmp/face-finder:/tmp/face-finder
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
